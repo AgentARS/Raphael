@@ -1,0 +1,10 @@
+ALTER TABLE entities ADD COLUMN embedding BLOB;
+ALTER TABLE entities ADD COLUMN confidence REAL DEFAULT 1.0;
+ALTER TABLE entities ADD COLUMN last_seen TIMESTAMP;
+ALTER TABLE entities ADD COLUMN mention_count INTEGER DEFAULT 1;
+
+ALTER TABLE tasks ADD COLUMN confidence REAL DEFAULT 1.0;
+
+ALTER TABLE ideas ADD COLUMN confidence REAL DEFAULT 1.0;
+
+ALTER TABLE entity_relations ADD COLUMN confidence REAL DEFAULT 1.0;

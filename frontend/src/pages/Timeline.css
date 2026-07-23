@@ -1,0 +1,118 @@
+.timeline-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  position: sticky;
+  top: 0;
+  background: var(--bg-primary);
+  padding: var(--space-4) 0;
+  z-index: 10;
+}
+
+.page-header h1 {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -0.02em;
+}
+
+.capture-section {
+  margin-bottom: var(--space-4);
+}
+
+.entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--accent-danger);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12) 0;
+  color: var(--text-secondary);
+  text-align: center;
+  gap: var(--space-4);
+}
+
+.empty-state svg {
+  color: var(--text-tertiary);
+}
+
+.empty-state h2 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+/* Skeleton Loading */
+.skeleton-card {
+  height: 120px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.02) 20%,
+    rgba(255, 255, 255, 0.05) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  transform: translateX(-100%);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Search Results */
+.search-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.search-snippet {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  padding: 0 var(--space-4);
+  font-style: italic;
+}
+
+.search-snippet mark {
+  background: var(--accent-primary-muted);
+  color: var(--accent-primary);
+  border-radius: 2px;
+  padding: 0 2px;
+}
