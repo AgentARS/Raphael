@@ -7,9 +7,10 @@ interface TaskCardProps {
   task: Task;
   onUpdate: (task: Task) => void;
   onDelete: (taskId: string) => void;
+  onClickInfo?: () => void;
 }
 
-export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
+export function TaskCard({ task, onUpdate, onDelete, onClickInfo }: TaskCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editDesc, setEditDesc] = useState(task.description);
   const [editDate, setEditDate] = useState(task.due_date || '');
@@ -189,6 +190,15 @@ export function TaskCard({ task, onUpdate, onDelete }: TaskCardProps) {
           </div>
           
           <div className="task-actions-group">
+            {onClickInfo && (
+              <button className="task-action-btn" onClick={onClickInfo} title="View details">
+                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+              </button>
+            )}
             <button className="task-action-btn" onClick={() => setIsEditing(true)} title="Edit task">
               <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>

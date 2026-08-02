@@ -76,10 +76,9 @@ async def process_entry(entry_id: str, content: str, context_project_id: str | N
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": content}
             ],
-            format="json",
             options={
                 "temperature": 0.0,
-                "num_ctx": 8192
+                "num_ctx": 4096
             }
         )
         
@@ -159,10 +158,11 @@ async def process_entry(entry_id: str, content: str, context_project_id: str | N
                     google_task_id = await asyncio.to_thread(calendar_service.create_google_task, desc, due_date if due_date else None)
 
                 task_id = str(uuid.uuid4())
+                sync_status = 'synced' if google_task_id else 'pending_create'
                 await db.execute(
-                    """INSERT INTO tasks (id, description, status, assignee_id, project_id, due_date, source_entry_id, confidence, google_task_id) 
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (task_id, desc, status, assignee_id, project_id, due_date, entry_id, f_conf, google_task_id)
+                    """INSERT INTO tasks (id, description, status, assignee_id, project_id, due_date, source_entry_id, confidence, google_task_id, sync_status) 
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (task_id, desc, status, assignee_id, project_id, due_date, entry_id, f_conf, google_task_id, sync_status)
                 )
                 
                 rel_est = task.get("relevance_estimate")
@@ -246,9 +246,9 @@ async def process_entry(entry_id: str, content: str, context_project_id: str | N
 
                 decision_id = str(uuid.uuid4())
                 await db.execute(
-                    """INSERT INTO decisions (id, summary, rationale, alternatives, project_id, source_entry_id)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
-                    (decision_id, title, reason, json.dumps([supersedes] if supersedes else []), project_id, entry_id)
+                    """INSERT INTO decisions (id, title, status, supersedes, reason, evidence, project_id, source_entry_id)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (decision_id, title, status, supersedes, reason, evidence, project_id, entry_id)
                 )
                 
                 rel_est = decision.get("relevance_estimate")

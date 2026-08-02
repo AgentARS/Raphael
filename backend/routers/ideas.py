@@ -2,7 +2,8 @@ from fastapi import APIRouter, Query, HTTPException
 import json
 import uuid
 from database import get_db
-from models import IdeaResponse, IdeaCreate, IdeaUpdate
+from models import IdeaResponse, IdeaCreate, IdeaUpdate, KnowledgeScores
+from scoring.engine import fetch_scores
 
 router = APIRouter(prefix="/api/ideas", tags=["ideas"])
 
@@ -28,6 +29,8 @@ async def list_ideas(project_id: str | None = None):
         
         rows = await cursor.fetchall()
         
+        scores_map = await fetch_scores(db, [row["id"] for row in rows])
+        
     return [
         IdeaResponse(
             id=row["id"],
@@ -36,6 +39,7 @@ async def list_ideas(project_id: str | None = None):
             project_name=row["project_name"],
             source_entry_id=row["source_entry_id"],
             created_at=row["created_at"],
+            scores=scores_map.get(row["id"])
         ) for row in rows
     ]
 

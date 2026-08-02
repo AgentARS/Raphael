@@ -5,21 +5,23 @@ import calendar_service
 
 router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 
+from typing import Union, List, Optional
+
 class CreateEventRequest(BaseModel):
     summary: str
-    description: str = ""
-    start_time: str
-    end_time: str
-    recurrence: list[str] | None = None
-    color_id: str | None = None
+    description: Optional[str] = ""
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    recurrence: Union[List[str], str, None] = None
+    color_id: Union[str, int, None] = None
 
 class UpdateEventRequest(BaseModel):
-    summary: str | None = None
-    description: str | None = None
-    start_time: str | None = None
-    end_time: str | None = None
-    recurrence: list[str] | None = None
-    color_id: str | None = None
+    summary: Optional[str] = None
+    description: Optional[str] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    recurrence: Union[List[str], str, None] = None
+    color_id: Union[str, int, None] = None
 
 @router.get("/events", response_model=list[CalendarEventResponse])
 async def list_events(max_results: int = 10):
@@ -47,14 +49,19 @@ async def list_events(max_results: int = 10):
 
 @router.post("/events", response_model=CalendarEventResponse)
 async def create_event(req: CreateEventRequest):
+    # Ensure recurrence is a list of strings if provided as a single string
+    rec = req.recurrence
+    if isinstance(rec, str):
+        rec = [rec]
+        
     try:
         e = calendar_service.create_event(
             summary=req.summary,
-            description=req.description,
-            start_time=req.start_time,
-            end_time=req.end_time,
-            recurrence=req.recurrence,
-            color_id=req.color_id
+            description=req.description or "",
+            start_time=req.start_time or "",
+            end_time=req.end_time or "",
+            recurrence=rec,
+            color_id=str(req.color_id) if req.color_id is not None else None
         )
         
         start = e['start'].get('dateTime', e['start'].get('date'))
@@ -73,15 +80,20 @@ async def create_event(req: CreateEventRequest):
 
 @router.put("/events/{event_id}", response_model=CalendarEventResponse)
 async def update_event(event_id: str, req: UpdateEventRequest):
+    # Ensure recurrence is a list of strings if provided as a single string
+    rec = req.recurrence
+    if isinstance(rec, str):
+        rec = [rec]
+        
     try:
         e = calendar_service.update_event(
-            event_id=event_id,
+            event_id,
             summary=req.summary,
             description=req.description,
             start_time=req.start_time,
             end_time=req.end_time,
-            recurrence=req.recurrence,
-            color_id=req.color_id
+            recurrence=rec,
+            color_id=str(req.color_id) if req.color_id is not None else None
         )
         
         start = e['start'].get('dateTime', e['start'].get('date'))

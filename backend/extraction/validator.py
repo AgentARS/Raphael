@@ -168,18 +168,21 @@ class Validator:
         clean_entities = []
         name_to_id = {}
         
-        for e in data.get("entities", []):
-            conf = e.get("confidence")
+        for entity in data.get("entities", []):
+            if not isinstance(entity, dict): continue
+            name = entity.get("name")
+            ent_type = entity.get("type", "Topic")
+            if not name: continue
+            
+            conf = entity.get("confidence")
             if conf is None or conf >= threshold:
-                ent_id = await resolve_canonical_entity(self.db, e, self.entry_id)
+                ent_id = await resolve_canonical_entity(self.db, entity, self.entry_id)
                 if ent_id:
-                    name_to_id[e.get("name")] = ent_id
+                    name_to_id[name] = ent_id
                     clean_entities.append({
                         "id": ent_id, 
-                        "type": e.get("type"), 
-                        "name": e.get("name"),
-                        "relevance_estimate": e.get("relevance_estimate"),
-                        "significance_estimate": e.get("significance_estimate")
+                        "relevance_estimate": entity.get("relevance_estimate"),
+                        "significance_estimate": entity.get("significance_estimate")
                     })
                     
         clean_tasks = []

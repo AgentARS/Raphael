@@ -33,12 +33,28 @@ async def fetch_scores(db, object_ids: list[str]) -> dict:
     cursor = await db.execute(f"SELECT * FROM knowledge_scores WHERE object_id IN ({placeholders})", object_ids)
     rows = await cursor.fetchall()
     
+    now = datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
+    
     result = {}
     for row in rows:
+        relevance = row["relevance"]
+        last_computed = row["last_computed_at"] if "last_computed_at" in row.keys() else None
+        if last_computed:
+            try:
+                dt = datetime.datetime.fromisoformat(last_computed.replace("Z", "+00:00"))
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=datetime.timezone.utc)
+                days_since = max(0, (now - dt).days)
+                if days_since > 0:
+                    # Apply dynamic read-time decay: 0.5 points per day since last computed
+                    relevance = max(0.0, relevance - (days_since * 0.5))
+            except Exception:
+                pass
+
         result[row['object_id']] = {
-            "relevance": row["relevance"],
+            "relevance": relevance,
             "significance": row["significance"],
-            "trend": row["relevance"] - row["previous_relevance"],
+            "trend": relevance - row["previous_relevance"],
             "explanation": row["explanation"]
         }
     return result
@@ -133,14 +149,14 @@ async def update_object_scores(db, object_id, object_type, baseline_rel=None, ba
     days_since_seen = (now - last_seen).days if last_seen else days_since_update
     
     if days_since_update <= 1:
-        rel_score += 20
+        rel_score += 10
         rel_explanations.append("Updated recently")
     elif days_since_update <= 7:
-        rel_score += 10
+        rel_score += 5
         rel_explanations.append("Updated this week")
         
     if days_since_seen <= 3:
-        rel_score += 15
+        rel_score += 10
         rel_explanations.append("Viewed or referenced recently")
         
     if is_completed:

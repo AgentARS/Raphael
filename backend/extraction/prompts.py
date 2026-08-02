@@ -12,7 +12,7 @@ JSON SCHEMA:
   "entities": [
     {{
       "name": "string (the name of the person, project, tool, organization, or topic)",
-      "type": "string (MUST be one of: 'Person', 'Project', 'Topic', 'Organization', 'Tool')",
+      "type": "string (MUST be one of: 'Person', 'Project', 'Topic', 'Organization', 'Tool', 'Task', 'Idea')",
       "confidence": "number (float between 0.0 and 1.0 indicating your confidence in this extraction)",
       "relevance_estimate": "number (float 0-100: How useful is this right now?)",
       "significance_estimate": "number (float 0-100: If you look back in 5 years, how important is this?)"
@@ -79,11 +79,11 @@ You MUST ONLY use the following relationship types based on the source entity ty
 RULES:
 1. ONLY output valid JSON matching the schema exactly.
 2. Every item extracted MUST have a `confidence` score (0.0 to 1.0). Be realistic.
-3. Extract ANY and EVERY noun that represents a project, topic, tool, or concept as an entity. Assign the exact type with proper capitalization: 'Person', 'Project', 'Topic', 'Organization', 'Tool'.
+3. ONLY extract the MOST IMPORTANT and EXPLICITLY MENTIONED nouns as entities (e.g., people, major projects, key tools). DO NOT over-extract minor concepts. Assign the exact type with proper capitalization: 'Person', 'Project', 'Topic', 'Organization', 'Tool'.
 4. **CRITICAL:** DO NOT create implicit tasks like "review X" or "think about Y" just because the user finished something. ONLY create tasks in the "tasks" array if the user explicitly instructs you or states a future pending action.
 5. Extract any thoughts about future features, possibilities, or non-obligatory plans as an idea.
 6. Keep entity names concise (e.g. "Rahul", not "my friend Rahul").
-7. Be HIGHLY PROACTIVE in forming `relationships` between entities, but ONLY use the exact allowed relationship types from the schema above.
+7. Form `relationships` ONLY when the connection is highly significant and explicitly supported by the text. Use the exact allowed relationship types from the schema above.
 8. **DECISIONS:** Whenever the text contains phrases like "We decided...", "I chose...", or "I will use...", extract a Decision object. Capture the reasoning and what it might supersede.
 
 TEXT TO PROCESS:

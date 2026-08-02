@@ -3,6 +3,7 @@ import { api } from '../api/client';
 import type { Task, Idea, CalendarEvent } from '../api/client';
 import { TaskCard } from '../components/TaskCard';
 import { IdeaCard } from '../components/IdeaCard';
+import DetailsPanel from '../components/DetailsPanel';
 import { useEventLogger } from '../hooks/useEventLogger';
 import './Dashboard.css';
 
@@ -13,6 +14,13 @@ export function Dashboard() {
   const [ideas, setIdeas] = useState<Idea[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const [selectedPanelItem, setSelectedPanelItem] = useState<{
+    title: string;
+    type: string;
+    scores?: any;
+    metadata?: any[];
+  } | null>(null);
 
   useEffect(() => {
     async function loadDashboard() {
@@ -188,8 +196,18 @@ export function Dashboard() {
                   <TaskCard 
                     key={task.id} 
                     task={task} 
-                    onUpdate={handleUpdateTask} 
-                    onDelete={handleDeleteTask} 
+                    onUpdate={handleUpdateTask}
+                    onDelete={handleDeleteTask}
+                    onClickInfo={() => setSelectedPanelItem({
+                      title: task.description,
+                      type: 'Task',
+                      scores: task.scores,
+                      metadata: [
+                        { label: 'Created At', value: new Date(task.created_at).toLocaleString() },
+                        { label: 'Project', value: task.project_name || 'None' },
+                        { label: 'Source', value: task.source_entry_id ? 'Original Note' : 'Manual' }
+                      ]
+                    })}
                   />
                 ))}
               </div>
@@ -284,11 +302,30 @@ export function Dashboard() {
                 idea={idea} 
                 onUpdate={handleUpdateIdea} 
                 onDelete={handleDeleteIdea} 
+                onClickInfo={() => setSelectedPanelItem({
+                  title: idea.description,
+                  type: 'Idea',
+                  scores: idea.scores,
+                  metadata: [
+                    { label: 'Created At', value: new Date(idea.created_at).toLocaleString() },
+                    { label: 'Project', value: idea.project_name || 'None' },
+                    { label: 'Source', value: idea.source_entry_id ? 'Original Note' : 'Manual' }
+                  ]
+                })}
               />
             ))}
           </div>
         </section>
       </div>
+
+      <DetailsPanel
+        isOpen={!!selectedPanelItem}
+        onClose={() => setSelectedPanelItem(null)}
+        title={selectedPanelItem?.title || ''}
+        type={selectedPanelItem?.type || ''}
+        scores={selectedPanelItem?.scores}
+        metadata={selectedPanelItem?.metadata}
+      />
     </div>
   );
 }

@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Query, HTTPException
 from database import get_db
-from models import TaskResponse, TaskUpdate, TaskCreate, PendingTaskUpdateResponse, SemanticTaskUpdate
+from models import TaskResponse, TaskUpdate, TaskCreate, PendingTaskUpdateResponse, SemanticTaskUpdate, KnowledgeScores
 import uuid
 from datetime import datetime
 import asyncio
 import calendar_service
+from scoring.engine import fetch_scores
 from extraction.pipeline import resolve_task
 
 router = APIRouter(prefix="/api/tasks", tags=["tasks"])
@@ -67,9 +68,12 @@ async def sync_tasks():
         for ptask in pending_tasks:
             try:
                 if ptask['sync_status'] == 'pending_create':
-                    gid = await asyncio.to_thread(calendar_service.create_google_task, ptask['description'], ptask['due_date'])
-                    if gid:
-                        await db.execute("UPDATE tasks SET google_task_id = ?, sync_status = 'synced' WHERE id = ?", (gid, ptask['id']))
+                    if ptask['google_task_id']:
+                        await db.execute("UPDATE tasks SET sync_status = 'synced' WHERE id = ?", (ptask['id'],))
+                    else:
+                        gid = await asyncio.to_thread(calendar_service.create_google_task, ptask['description'], ptask['due_date'])
+                        if gid:
+                            await db.execute("UPDATE tasks SET google_task_id = ?, sync_status = 'synced' WHERE id = ?", (gid, ptask['id']))
                 elif ptask['sync_status'] == 'pending_update':
                     if ptask['google_task_id']:
                         success = await asyncio.to_thread(calendar_service.update_google_task, ptask['google_task_id'], title=ptask['description'], due_date=ptask['due_date'], status=ptask['status'])
@@ -178,6 +182,14 @@ async def sync_tasks():
                         await db.execute(query, params)
                         synced_count += 1
                         
+        # -- SWEEP PHASE: Remove locally orphaned tasks --
+        # Any local task with a google_task_id that no longer exists in google_tasks 
+        # means it was permanently deleted or cleared from Google Tasks externally.
+        for local_gid, local_task in local_gtask_ids.items():
+            if local_gid not in google_tasks:
+                await db.execute("DELETE FROM tasks WHERE id = ?", (local_task["id"],))
+                synced_count += 1
+                
         await db.commit()
     return {"status": "ok", "synced": synced_count}
 
@@ -189,10 +201,12 @@ async def list_suggested_tasks():
             SELECT tasks.*, entities.name as project_name 
             FROM tasks 
             LEFT JOIN entities ON tasks.project_id = entities.id 
-            WHERE tasks.status = 'suggested' AND tasks.sync_status != 'pending_delete'
+            WHERE tasks.status = 'suggested' AND tasks.sync_status != 'pending_delete' AND tasks.status != 'deleted'
             ORDER BY tasks.created_at DESC
         """)
         rows = await cursor.fetchall()
+        
+        scores_map = await fetch_scores(db, [row["id"] for row in rows])
         
     return [
         TaskResponse(
@@ -205,8 +219,10 @@ async def list_suggested_tasks():
             project_name=row["project_name"],
             due_date=row["due_date"],
             source_entry_id=row["source_entry_id"],
+            confidence=row["confidence"] or 1.0,
             created_at=row["created_at"],
             completed_at=row["completed_at"],
+            scores=scores_map.get(row["id"])
         ) for row in rows
     ]
 
@@ -219,7 +235,7 @@ async def list_tasks(project_id: str | None = None):
                 SELECT tasks.*, entities.name as project_name 
                 FROM tasks 
                 LEFT JOIN entities ON tasks.project_id = entities.id 
-                WHERE tasks.project_id = ? AND tasks.sync_status != 'pending_delete'
+                WHERE tasks.project_id = ? AND tasks.sync_status != 'pending_delete' AND tasks.status != 'deleted'
                 ORDER BY tasks.created_at DESC
             """, (project_id,))
         else:
@@ -227,11 +243,12 @@ async def list_tasks(project_id: str | None = None):
                 SELECT tasks.*, entities.name as project_name 
                 FROM tasks 
                 LEFT JOIN entities ON tasks.project_id = entities.id 
-                WHERE tasks.sync_status != 'pending_delete'
+                WHERE tasks.sync_status != 'pending_delete' AND tasks.status != 'deleted'
                 ORDER BY tasks.created_at DESC
             """)
         
         rows = await cursor.fetchall()
+        scores_map = await fetch_scores(db, [row["id"] for row in rows])
         
     return [
         TaskResponse(
@@ -244,8 +261,10 @@ async def list_tasks(project_id: str | None = None):
             project_name=row["project_name"],
             due_date=row["due_date"],
             source_entry_id=row["source_entry_id"],
+            confidence=row["confidence"] or 1.0,
             created_at=row["created_at"],
             completed_at=row["completed_at"],
+            scores=scores_map.get(row["id"])
         ) for row in rows
     ]
 
@@ -388,12 +407,12 @@ async def delete_task(task_id: str):
         if row and row['google_task_id']:
             try:
                 await asyncio.to_thread(calendar_service.delete_google_task, row['google_task_id'])
-                await db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+                await db.execute("UPDATE tasks SET status = 'deleted', sync_status = 'synced', last_modified_locally = CURRENT_TIMESTAMP WHERE id = ?", (task_id,))
             except Exception as e:
                 print(f"Offline or network error during delete: {e}")
-                await db.execute("UPDATE tasks SET sync_status = 'pending_delete', last_modified_locally = CURRENT_TIMESTAMP WHERE id = ?", (task_id,))
+                await db.execute("UPDATE tasks SET status = 'deleted', sync_status = 'pending_delete', last_modified_locally = CURRENT_TIMESTAMP WHERE id = ?", (task_id,))
         else:
-            await db.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+            await db.execute("UPDATE tasks SET status = 'deleted', last_modified_locally = CURRENT_TIMESTAMP WHERE id = ?", (task_id,))
             
         await db.commit()
 

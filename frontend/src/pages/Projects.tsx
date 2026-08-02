@@ -4,6 +4,7 @@ import { EntryCard } from '../components/EntryCard';
 import { EntryCapture } from '../components/EntryCapture';
 import { TaskCard } from '../components/TaskCard';
 import { IdeaCard } from '../components/IdeaCard';
+import DetailsPanel from '../components/DetailsPanel';
 import './Projects.css';
 import './Dashboard.css';
 
@@ -21,6 +22,13 @@ export function Projects() {
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [newIdeaDesc, setNewIdeaDesc] = useState('');
   const [isCreatingIdea, setIsCreatingIdea] = useState(false);
+  
+  const [selectedPanelItem, setSelectedPanelItem] = useState<{
+    title: string;
+    type: string;
+    scores?: any;
+    metadata?: any[];
+  } | null>(null);
 
   // Function to refresh projects globally
   const refreshProjects = async () => {
@@ -369,7 +377,28 @@ export function Projects() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-                  <h1 className="project-title">{selectedProject.name}</h1>
+                  <header className="project-header" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+                    <h1 className="project-title">{selectedProject.name}</h1>
+                    <button 
+                      className="task-action-btn" 
+                      onClick={() => setSelectedPanelItem({
+                        title: selectedProject.name,
+                        type: 'Project',
+                        scores: undefined,
+                        metadata: [
+                          { label: 'Created At', value: new Date(selectedProject.created_at).toLocaleString() },
+                          { label: 'Metadata', value: JSON.stringify(selectedProject.metadata) }
+                        ]
+                      })}
+                      title="View Project Details"
+                    >
+                      <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                      </svg>
+                    </button>
+                  </header>
                   <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
                     <button onClick={handleStartEditProject} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-default)', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-md)', cursor: 'pointer', color: 'var(--text-secondary)' }}>Rename</button>
                     <button onClick={() => handleDeleteProject(selectedProject.id)} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-default)', padding: 'var(--space-2) var(--space-3)', borderRadius: 'var(--radius-md)', cursor: 'pointer', color: 'var(--accent-warning)' }}>Delete</button>
@@ -423,6 +452,15 @@ export function Projects() {
                         task={task}
                         onUpdate={handleUpdateTask}
                         onDelete={handleDeleteTask}
+                        onClickInfo={() => setSelectedPanelItem({
+                          title: task.description,
+                          type: 'Task',
+                          scores: task.scores,
+                          metadata: [
+                            { label: 'Created At', value: new Date(task.created_at).toLocaleString() },
+                            { label: 'Source', value: task.source_entry_id ? 'Original Note' : 'Manual' }
+                          ]
+                        })}
                       />
                     ))
                   )}
@@ -438,6 +476,15 @@ export function Projects() {
                           task={task}
                           onUpdate={handleUpdateTask}
                           onDelete={handleDeleteTask}
+                          onClickInfo={() => setSelectedPanelItem({
+                            title: task.description,
+                            type: 'Task',
+                            scores: task.scores,
+                            metadata: [
+                              { label: 'Created At', value: new Date(task.created_at).toLocaleString() },
+                              { label: 'Source', value: task.source_entry_id ? 'Original Note' : 'Manual' }
+                            ]
+                          })}
                         />
                       ))}
                     </div>
@@ -482,7 +529,16 @@ export function Projects() {
                         key={idea.id} 
                         idea={idea} 
                         onUpdate={handleUpdateIdea} 
-                        onDelete={handleDeleteIdea} 
+                        onDelete={handleDeleteIdea}
+                        onClickInfo={() => setSelectedPanelItem({
+                          title: idea.description,
+                          type: 'Idea',
+                          scores: idea.scores,
+                          metadata: [
+                            { label: 'Created At', value: new Date(idea.created_at).toLocaleString() },
+                            { label: 'Source', value: idea.source_entry_id ? 'Original Note' : 'Manual' }
+                          ]
+                        })}
                       />
                     ))
                   )}
@@ -532,6 +588,15 @@ export function Projects() {
           </>
         )}
       </div>
+
+      <DetailsPanel
+        isOpen={!!selectedPanelItem}
+        onClose={() => setSelectedPanelItem(null)}
+        title={selectedPanelItem?.title || ''}
+        type={selectedPanelItem?.type || ''}
+        scores={selectedPanelItem?.scores}
+        metadata={selectedPanelItem?.metadata}
+      />
     </div>
   );
 }

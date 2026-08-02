@@ -5,7 +5,7 @@ import { EntryCard } from '../components/EntryCard';
 import { useEventLogger } from '../hooks/useEventLogger';
 import './Entities.css';
 
-const TYPE_COLORS: Record<string, string> = {
+export const TYPE_COLORS: Record<string, string> = {
   project: '#3b82f6', // blue
   person: '#10b981', // green
   topic: '#8b5cf6', // purple
