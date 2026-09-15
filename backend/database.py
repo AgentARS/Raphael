@@ -160,6 +160,61 @@ async def init_db():
             )
         """)
 
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS autonomous_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+        
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS daily_briefings (
+                date TEXT PRIMARY KEY,
+                content_json TEXT NOT NULL,
+                last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS autonomous_tasks (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                priority INTEGER DEFAULT 5,
+                estimated_cost_ms INTEGER DEFAULT 1000,
+                max_runtime_ms INTEGER DEFAULT 300000,
+                retry_policy TEXT DEFAULT 'exponential_backoff',
+                last_run TIMESTAMP,
+                next_eligible_run TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                enabled BOOLEAN DEFAULT 1
+            )
+        """)
+        
+        # Insert default settings
+        await db.execute("INSERT OR IGNORE INTO autonomous_settings (key, value) VALUES ('mode', 'manual')")
+        await db.execute("INSERT OR IGNORE INTO autonomous_settings (key, value) VALUES ('wake_interval_seconds', '300')")
+        await db.execute("INSERT OR IGNORE INTO autonomous_settings (key, value) VALUES ('max_runtime_per_cycle_seconds', '300')")
+        await db.execute("INSERT OR IGNORE INTO autonomous_settings (key, value) VALUES ('max_cpu_percent', '80.0')")
+        await db.execute("INSERT OR IGNORE INTO autonomous_settings (key, value) VALUES ('max_ram_percent', '85.0')")
+
+        # Seed initial tasks
+        initial_tasks = [
+            ("generate_daily_briefing", 15),
+            ("refresh_relevance_scores", 10),
+            ("refresh_significance_scores", 9),
+            ("detect_stale_projects", 8),
+            ("detect_open_loops", 7),
+            ("merge_duplicate_entities", 6),
+            ("validate_graph_consistency", 5),
+            ("remove_invalid_relationships", 4),
+            ("refresh_cached_dashboard", 3)
+        ]
+        for task_name, priority in initial_tasks:
+            import uuid
+            await db.execute("""
+                INSERT OR IGNORE INTO autonomous_tasks (id, name, priority)
+                VALUES (?, ?, ?)
+            """, (str(uuid.uuid4()), task_name, priority))
+
         # --- FTS5 virtual table for full-text search on entries ---
 
         await db.execute("""

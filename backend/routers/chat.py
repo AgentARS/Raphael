@@ -2,21 +2,19 @@ import json
 import datetime
 import asyncio
 import numpy as np
+import os
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional
-import ollama
 
 from database import get_db
 from extraction.embeddings import generate_embedding, OLLAMA_BASE_URL
-from extraction.pipeline import EXTRACTION_MODEL
 from scoring.engine import fetch_scores
 import calendar_service
+from llm_manager import generate_chat, SystemMemoryOverloadError, LIGHT_MODEL
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
-
-client = ollama.AsyncClient(host=OLLAMA_BASE_URL)
 
 class ChatMessage(BaseModel):
     role: str
@@ -194,15 +192,18 @@ CONTEXT:
     if request.stream:
         async def generate():
             try:
-                # Use async client for streaming
-                async for chunk in await client.chat(model=EXTRACTION_MODEL, messages=ollama_messages, stream=True):
-                    content = chunk.get("message", {}).get("content", "")
-                    if content:
-                        yield content
+                # We yield the stream generator from generate_chat
+                async for chunk in await generate_chat(model=LIGHT_MODEL, messages=ollama_messages, stream=True, options={"num_ctx": 8192}):
+                    yield chunk['message']['content']
+            except SystemMemoryOverloadError:
+                yield "\n\n[System overloaded: Memory limits exceeded. Please wait a moment for the AI to free up resources.]"
             except Exception as e:
-                yield f"\n\nError connecting to LLM: {str(e)}"
+                yield f"\n\n[Error generating response: {str(e)}]"
                 
-        return StreamingResponse(generate(), media_type="text/plain")
+        return StreamingResponse(generate(), media_type="text/event-stream")
     else:
-        response = await client.chat(model=EXTRACTION_MODEL, messages=ollama_messages, stream=False)
-        return {"role": "assistant", "content": response.get("message", {}).get("content", "")}
+        try:
+            response = await generate_chat(model=LIGHT_MODEL, messages=ollama_messages, stream=False, options={"num_ctx": 8192})
+            return {"role": "assistant", "content": response['message']['content']}
+        except SystemMemoryOverloadError:
+            raise HTTPException(status_code=503, detail="System Memory Overloaded. AI paused.")

@@ -1,0 +1,151 @@
+.autonomous-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.autonomous-modal-content {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  width: 450px;
+  max-width: 90vw;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border-default);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  color: var(--text-primary);
+}
+
+.status-grid {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.status-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-item label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-item span {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.85rem !important;
+  font-weight: 500;
+  text-transform: capitalize;
+  width: max-content;
+}
+
+.status-badge.autonomous {
+  background: rgba(46, 204, 113, 0.2);
+  color: #2ecc71 !important;
+}
+
+.status-badge.manual {
+  background: rgba(241, 196, 15, 0.2);
+  color: #f1c40f !important;
+}
+
+.status-badge.running {
+  background: rgba(52, 152, 219, 0.2);
+  color: #3498db !important;
+}
+
+.status-badge.idle {
+  background: rgba(149, 165, 166, 0.2);
+  color: #95a5a6 !important;
+}
+
+.limits-text {
+  font-family: monospace;
+}
+
+.modal-actions {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-default);
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.action-btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  border: none;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.run-now {
+  background: var(--accent-primary);
+  color: white;
+}
+
+.action-btn.run-now:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.action-btn.pause {
+  background: rgba(231, 76, 60, 0.1);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+}
+
+.action-btn.pause:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.2);
+}

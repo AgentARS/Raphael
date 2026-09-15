@@ -7,9 +7,17 @@ interface EntryCaptureProps {
 }
 
 export function EntryCapture({ onSubmit }: EntryCaptureProps) {
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(() => {
+    const saved = localStorage.getItem('raphael_draft_note');
+    return saved || '';
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Persist draft
+  useEffect(() => {
+    localStorage.setItem('raphael_draft_note', content);
+  }, [content]);
 
   // Auto-expand textarea
   useEffect(() => {

@@ -1,7 +1,8 @@
 fastapi
-uvicorn[standard]
+uvicorn
 aiosqlite
 ollama
 numpy
 python-dotenv
 pydantic
+psutil==5.9.8

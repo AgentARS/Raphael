@@ -4,21 +4,27 @@ Main FastAPI application for Raphael.
 Sets up CORS, lifespan (DB init), routers, and health check.
 """
 
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+logging.basicConfig(level=logging.INFO)
+
 from database import init_db
-from routers import entries, search, tasks, ideas, entities, chat, calendar, events
+from routers import entries, search, tasks, ideas, entities, chat, calendar, events, autonomous, briefing, discussions
+from autonomous.scheduler import scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize the database on startup."""
+    """Initialize the database and scheduler on startup."""
     await init_db()
+    await scheduler.start()
     yield
+    await scheduler.stop()
 
 
 app = FastAPI(
@@ -46,6 +52,9 @@ app.include_router(entities.router)
 app.include_router(chat.router)
 app.include_router(calendar.router)
 app.include_router(events.router)
+app.include_router(autonomous.router)
+app.include_router(briefing.router)
+app.include_router(discussions.router)
 
 
 @app.get("/api/health", tags=["health"])

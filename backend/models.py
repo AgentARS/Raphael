@@ -135,6 +135,7 @@ class SearchResult(BaseModel):
     entry: EntryResponse
     snippet: Optional[str] = None
     rank: Optional[float] = None
+    diagnostics: Optional[dict] = None
 
 class EntityRelationResponse(BaseModel):
     id: str

@@ -4,18 +4,15 @@ import uuid
 import datetime
 import asyncio
 import numpy as np
-import ollama
 import calendar_service
 from aiosqlite import Connection
 from .prompts import get_extraction_prompt
 from .embeddings import generate_embedding
 from .validator import Validator, resolve_canonical_entity
 from scoring.engine import update_object_scores
+from llm_manager import generate_chat, SystemMemoryOverloadError
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-EXTRACTION_MODEL = os.getenv("EXTRACTION_MODEL", "qwen3:8b")
-
-client = ollama.AsyncClient(host=OLLAMA_BASE_URL)
+HEAVY_MODEL = os.getenv("HEAVY_MODEL", "qwen3:8b")
 
 async def resolve_task(db, description: str, include_completed: bool = False) -> str | None:
     """Uses LLM to find the closest matching open task by description."""
@@ -31,8 +28,8 @@ async def resolve_task(db, description: str, include_completed: bool = False) ->
         prompt += f"ID: {t['id']} | Desc: {t['description']}\n"
     prompt += f"\nWhich task ID best matches this description: '{description}'? Respond ONLY with the exact task ID, or 'NONE' if no task matches."
     
-    response = await client.chat(
-        model=EXTRACTION_MODEL, 
+    response = await generate_chat(
+        model=HEAVY_MODEL, 
         messages=[{"role": "user", "content": prompt}],
         options={"temperature": 0.0}
     )
@@ -70,25 +67,35 @@ async def process_entry(entry_id: str, content: str, context_project_id: str | N
         current_date = datetime.datetime.now().strftime("%Y-%m-%d")
         prompt = get_extraction_prompt(current_date)
         
-        response = await client.chat(
-            model=EXTRACTION_MODEL,
+        response = await generate_chat(
+            model=HEAVY_MODEL,
             messages=[
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": content}
             ],
+            format="json",
             options={
                 "temperature": 0.0,
                 "num_ctx": 4096
             }
         )
         
-        result_text = response.get('message', {}).get('content', '{}')
-        print("LLM OUTPUT:", result_text)
+        raw_content = response.get('message', {}).get('content', '{}').strip()
+        print("LLM OUTPUT:", raw_content)
+        
+        # Robust JSON extraction in case the model wraps it in markdown blocks or conversational text
+        import re
+        json_match = re.search(r'\{.*\}', raw_content, re.DOTALL)
+        if json_match:
+            raw_content = json_match.group(0)
+            
         try:
-            # LLM can sometimes return invalid JSON if the prompt isn't strictly followed
-            json.loads(result_text)
+            # Validate JSON is parseable, but we don't actually use it here (Validator parses it again)
+            json.loads(raw_content)
+            # Update result_text for Validator
+            result_text = raw_content
         except json.JSONDecodeError:
-            print(f"Failed to decode JSON from LLM: {result_text}")
+            print(f"Failed to decode JSON from LLM: {raw_content}")
             async with get_db() as db:
                 await db.execute("UPDATE entries SET extraction_status = 'failed' WHERE id = ?", (entry_id,))
                 await db.commit()
@@ -151,14 +158,14 @@ async def process_entry(entry_id: str, content: str, context_project_id: str | N
                     )
                 
                 f_conf = float(conf)
-                status = 'open' if f_conf >= 0.8 else 'suggested'
                 
+                # All extracted tasks require user approval before becoming 'open'
+                status = 'suggested'
                 google_task_id = None
-                if status == 'open':
-                    google_task_id = await asyncio.to_thread(calendar_service.create_google_task, desc, due_date if due_date else None)
-
+                sync_status = 'pending_create'
+                
                 task_id = str(uuid.uuid4())
-                sync_status = 'synced' if google_task_id else 'pending_create'
+                    
                 await db.execute(
                     """INSERT INTO tasks (id, description, status, assignee_id, project_id, due_date, source_entry_id, confidence, google_task_id, sync_status) 
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -291,6 +298,9 @@ async def process_entry(entry_id: str, content: str, context_project_id: str | N
             
             await db.commit()
             
+    except SystemMemoryOverloadError as e:
+        print(f"Memory overload during extraction for entry {entry_id}: {e}. Leaving as pending.")
+        return
     except Exception as e:
         print(f"Error in extraction pipeline for entry {entry_id}: {e}")
         # Need a new connection for the error fallback since the `with get_db()` context might be broken or closed

@@ -4,13 +4,10 @@ import string
 import numpy as np
 from rapidfuzz import fuzz
 from .embeddings import generate_embedding
-import ollama
 import os
+from llm_manager import generate_chat, SystemMemoryOverloadError
 
-OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-EXTRACTION_MODEL = os.getenv("EXTRACTION_MODEL", "qwen3:8b")
-
-client = ollama.AsyncClient(host=OLLAMA_BASE_URL)
+HEAVY_MODEL = os.getenv("HEAVY_MODEL", "qwen3:8b")
 
 VALID_RELATIONS = {
     "Person": {"discussed", "created", "assigned_to", "attended", "mentioned", "inspired"},
@@ -118,15 +115,19 @@ async def resolve_canonical_entity(db, entity_dict, current_entry_id):
                     if 0.85 < sim <= 0.95:
                         # Ambiguous match, ask LLM
                         prompt = f"Are the entities '{raw_name}' and '{row['name']}' likely referring to the same exact {ent_type}? Reply with ONLY 'YES' or 'NO'."
-                        response = await client.chat(
-                            model=EXTRACTION_MODEL,
-                            messages=[{"role": "user", "content": prompt}],
-                            options={"temperature": 0.0}
-                        )
-                        reply = response.get('message', {}).get('content', '').strip().upper()
-                        if 'YES' in reply:
-                            await _add_alias_and_update(db, row["id"], raw_name, row["aliases"], current_entry_id)
-                            return row["id"]
+                        try:
+                            response = await generate_chat(
+                                model=HEAVY_MODEL,
+                                messages=[{"role": "user", "content": prompt}],
+                                options={"temperature": 0.0}
+                            )
+                            reply = response.get('message', {}).get('content', '').strip().upper()
+                            if 'YES' in reply:
+                                await _add_alias_and_update(db, row["id"], raw_name, row["aliases"], current_entry_id)
+                                return row["id"]
+                        except SystemMemoryOverloadError:
+                            # Skip LLM check if memory overloaded, default to creating a new entity
+                            pass
     
     # Create new Canonical Entity
     new_id = str(uuid.uuid4())

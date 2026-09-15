@@ -55,6 +55,15 @@ Upon matching, the validator updates the existing entity's aliases list and incr
 - **Hybrid Search**: Combines full-text FTS5 matching with vector cosine similarity.
 - **Retrieval-Augmented Generation (RAG)**: The `/api/chat` route performs embedding searches on note entries, pulls upcoming Google Calendar events, extracts current pending tasks, and feeds the merged context to the LLM to provide highly accurate, grounded answers.
 
+### 5. Autonomous Execution System (`backend/autonomous/`)
+- A background `asyncio` loop (`scheduler.py`) that performs routine maintenance when Raphael is in "Autonomous Mode".
+- **Dynamic Load Monitoring**: Uses `psutil` to verify system CPU and RAM are below configured thresholds before running tasks to remain entirely unobtrusive.
+- **Maintenance Checklist (`tasks.py`)**: Includes tasks like `refresh_relevance_scores`, `detect_open_loops`, and `merge_duplicate_entities`. Tasks declare `priority` and `max_runtime_ms` and are stored in SQLite to persist state across reboots.
+
+### 6. Daily Executive Briefing (`backend/routers/briefing.py`)
+- **Proactive Synthesis**: Instead of waiting for prompts, Raphael runs the `generate_daily_briefing` autonomous task on the first wake of a new day. It pulls active projects, open tasks, and recent notes, using Ollama to synthesize a 7-section structured JSON briefing.
+- **Dynamic Hybrid Rendering**: To save expensive repeated LLM calls, the backend fetches this static JSON but dynamically injects live Calendar upcoming events and high-priority tasks into the response, ensuring the Briefing UI is always perfectly up to date.
+
 ---
 
 ## Directory Structure
@@ -83,7 +92,8 @@ raphael/
         │   ├── Timeline.tsx     # Notebook stream view
         │   ├── Projects.tsx     # Project panel (contains tasks/ideas/notes)
         │   ├── Entities.tsx     # Visual force-directed knowledge graph
-        │   └── Chat.tsx         # RAG conversation UI
+        │   ├── Chat.tsx         # RAG conversation UI
+        │   └── Briefing.tsx     # Daily Executive Briefing dashboard
         └── components/          # Reusable Tailwind/CSS components
 ```
 
